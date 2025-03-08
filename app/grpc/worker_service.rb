@@ -53,7 +53,7 @@ class WorkerServiceImpl < Worker::WorkerService::Service
     begin
 
       # TODO: REMOVE WHEN RECEIVING FROM ORCHESTRATOR
-      payload["search_term"] = "bahia blanca"
+      payload["search_term"] = "Melodifestivalen"
 
       posts = BLUESKY.search(payload["search_term"])
       newsworthy_posts = GEMINI.filter_newsworthy_posts(posts)
