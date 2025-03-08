@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package worker;
+
+service WorkerService {
+  rpc PerformTask (WorkerRequest) returns (WorkerResponse);
+}
+
+message WorkerRequest {
+  string payload = 1;
+}
+
+message WorkerResponse {
+  bool success = 1;
+}

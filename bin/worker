@@ -1,0 +1,13 @@
+#!/usr/bin/env ruby
+
+require 'grpc'
+require_relative '../config/environment'
+require_relative '../app/grpc/worker_service'
+
+port = '0.0.0.0:50052'
+server = GRPC::RpcServer.new
+server.add_http2_port(port, :this_port_is_insecure)
+server.handle(WorkerServiceImpl.new)
+
+puts "gRPC Worker Service running on #{port}"
+server.run_till_terminated_or_interrupted([1, 'int', 'SIGTERM'])
