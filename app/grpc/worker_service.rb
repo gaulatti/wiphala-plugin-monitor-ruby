@@ -53,11 +53,10 @@ class WorkerServiceImpl < Worker::WorkerService::Service
     begin
 
       # TODO: REMOVE WHEN RECEIVING FROM ORCHESTRATOR
-      payload["search_term"] = "Melodifestivalen"
-
+      payload["search_term"] = "bahia blanca"
       posts = BLUESKY.search(payload["search_term"])
       newsworthy_posts = GEMINI.filter_newsworthy_posts(posts)
-      WIPHALA.talkback(talkback_url, payload["slug"], newsworthy_posts)
+      WIPHALA.talkback(talkback_url, payload["playlist"]["slug"], newsworthy_posts)
 
     rescue StandardError => e
       puts "❌ Error in process_task: #{e.message}"
