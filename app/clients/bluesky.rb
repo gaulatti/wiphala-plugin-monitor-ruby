@@ -73,8 +73,8 @@ class BlueskyClient
 
     uri = URI("#{BASE_URL}/xrpc/app.bsky.feed.searchPosts")
 
-    # Calculate the time 10 minutes ago
-    five_minutes_ago = (Time.now - 600).utc.iso8601
+    # Calculate the time 1 minutes ago
+    five_minutes_ago = (Time.now - 60).utc.iso8601
 
     # Set up query parameters
     params = {
