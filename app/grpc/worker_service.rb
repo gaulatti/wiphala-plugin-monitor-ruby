@@ -51,10 +51,12 @@ class WorkerServiceImpl < Worker::WorkerService::Service
   #   process_task(payload, talkback_url)
   def process_task(payload, talkback_url)
     begin
+      keyword = payload["playlist"]["context"]["metadata"]["keyword"]
 
-      # TODO: REMOVE WHEN RECEIVING FROM ORCHESTRATOR
-      payload["search_term"] = "bahia blanca"
-      posts = BLUESKY.search(payload["search_term"])
+      # If there's no keyword provided, don't do anything.
+      return [] if keyword.nil?
+
+      posts = BLUESKY.search(keyword)
       newsworthy_posts = GEMINI.filter_newsworthy_posts(posts)
       WIPHALA.talkback(talkback_url, payload["playlist"]["slug"], newsworthy_posts)
 
