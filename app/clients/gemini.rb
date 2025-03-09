@@ -53,7 +53,7 @@ class GeminiClient
   #
   # If the API request fails, an error message is printed and an empty array is returned.
   def filter_newsworthy_posts(posts)
-    return [] if posts.empty?
+    return [] if posts.nil? || posts.empty?
 
     prompts = posts.map.with_index do |post, index|
       "Post #{index + 1}:\n#{post.to_json}\n"
