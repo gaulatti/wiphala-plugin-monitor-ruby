@@ -52,7 +52,7 @@ class WorkerServiceImpl < Worker::WorkerService::Service
   def process_task(payload, talkback_url)
     begin
       keyword = payload["context"]["metadata"]["keyword"]
-      seconds = payload["context"]["metadata"]["seconds"]
+      seconds = payload["context"]["metadata"]["since"]
 
       # If there's no keyword provided, don't do anything.
       return [] if keyword.nil?
