@@ -75,19 +75,18 @@ class BlueskyClient
   # 5. If the response is successful, parses and returns the posts.
   # 6. If the token is expired, refreshes the session and retries the search.
   # 7. If the search fails, prints an error message and returns nil.
-  def search(term)
+  def search(term, seconds)
     return unless @auth_token
 
     uri = URI("#{BASE_URL}/xrpc/app.bsky.feed.searchPosts")
 
     # Calculate the time 1 minutes ago
-    five_minutes_ago = (Time.now - 60).utc.iso8601
-
+    since = (Time.now - seconds).utc.iso8601
     # Set up query parameters
     params = {
       q: term,
       sort: "latest",
-      since: five_minutes_ago
+      since: since
     }
     uri.query = URI.encode_www_form(params)
 
