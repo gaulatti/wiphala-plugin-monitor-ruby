@@ -60,9 +60,18 @@ class GeminiClient
     end
 
     combined_prompt = <<~PROMPT
-      Analyze the following posts and determine if each is newsworthy.#{' '}
-      For each post, return either 'yes' (newsworthy) or 'no' (not newsworthy),#{' '}
-      in the same order as the posts.
+      Analyze the following posts and determine which are newsworthy.
+      For each newsworthy post, extract:
+      - Relevant categories (e.g., Politics, Technology, Sports, etc.)
+      - If it's politics, extract the political party (e.g., Democrat, Republican).
+      - If it's sports, extract the sport type (e.g., Soccer, Basketball).
+      - If it's a breaking news event, extract the event type (e.g., Earthquake, Fire) and the urgency.
+      - Extract the geographical region if relevant.
+      - Important keywords worth exploring.
+
+      Return a JSON array containing only the newsworthy posts, preserving their original structure,
+      but adding `"categories"` (an array of relevant categories), `"keywords"` (an array of extracted keywords),
+      and all other relevant fields in the same way (sports, breaking, urgency, region).
 
       #{prompts.join("\n")}
     PROMPT
@@ -79,12 +88,15 @@ class GeminiClient
 
     if response.is_a?(Net::HTTPSuccess)
       json = JSON.parse(response.body)
-      output = json.dig("candidates", 0, "content", "parts", 0, "text").to_s.strip.downcase
-      results = output.split("\n").map(&:strip)
-
-      # Filter out non-newsworthy posts
-      newsworthy_posts = posts.each_with_index.select { |_, i| results[i] == "yes" }.map(&:first)
-      newsworthy_posts
+      output = json.dig("candidates", 0, "content", "parts", 0, "text").to_s.strip
+      json_output = output.gsub(/^```json\n/, "").gsub(/\n```$/, "").strip
+      begin
+        newsworthy_posts = JSON.parse(json_output)
+        newsworthy_posts.is_a?(Array) ? newsworthy_posts : []
+      rescue JSON::ParserError
+        puts "❌ Failed to parse API response: #{output}"
+        []
+      end
     else
       puts "❌ Gemini API failed: #{response.body}"
       []
