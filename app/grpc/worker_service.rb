@@ -51,13 +51,20 @@ class WorkerServiceImpl < Worker::WorkerService::Service
   #   process_task(payload, talkback_url)
   def process_task(payload, talkback_url)
     begin
+      keywords = payload["context"]["metadata"]["keywords"] || []
+
+      # Keeping keyword for backwards compatibility
       keyword = payload["context"]["metadata"]["keyword"]
       seconds = payload["context"]["metadata"]["since"]
 
-      # If there's no keyword provided, don't do anything.
-      return [] if keyword.nil?
+      unless keyword.nil?
+        keywords.push(keyword)
+      end
 
-      posts = BLUESKY.search(keyword, seconds)
+      # If there's no keyword provided, don't do anything.
+      return [] if keywords.empty?
+
+      posts = BLUESKY.search_multiple(keywords, seconds)
       newsworthy_posts = GEMINI.filter_newsworthy_posts(posts)
       WIPHALA.talkback(talkback_url, payload["playlist"]["slug"], newsworthy_posts)
 

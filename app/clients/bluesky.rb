@@ -80,7 +80,7 @@ class BlueskyClient
 
     uri = URI("#{BASE_URL}/xrpc/app.bsky.feed.searchPosts")
 
-    # Calculate the time 1 minutes ago
+    # Calculate the time `seconds` ago
     since = (Time.now - seconds).utc.iso8601
     # Set up query parameters
     params = {
@@ -101,10 +101,18 @@ class BlueskyClient
     elsif response.body.include?("ExpiredToken")
       puts "⚠️ Token expired, refreshing..."
       refresh_session
-      search(term)
+      search(terms, seconds)
     else
       puts "❌ Search failed: #{response.body}"
       nil
     end
+  end
+
+  def search_multiple(terms, seconds)
+    return unless @auth_token
+    return if terms.nil? || terms.empty?
+
+    results = terms.flat_map { |term| search(term, seconds) }.uniq
+    results
   end
 end
