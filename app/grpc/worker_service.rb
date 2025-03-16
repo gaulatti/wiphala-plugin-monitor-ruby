@@ -79,23 +79,32 @@ class WorkerServiceImpl < Worker::WorkerService::Service
       posts = BLUESKY.search_multiple(keywords, seconds)
       newsworthy_posts = GEMINI.filter_newsworthy_posts(posts)
 
-      # Hydrate the newsworthy posts with the full post data
-      matched_posts = newsworthy_posts["cids"].map do |cid|
-        posts.find { |post| post["cid"] == cid }
-      end.compact
+      # If the response is an array instead of the expected hash, take the first element
+      if newsworthy_posts.is_a?(Array)
+        newsworthy_posts = newsworthy_posts.first || {}
+      end
 
-      matched_breaking_posts = newsworthy_posts["breaking"].map do |cid|
-        posts.find { |post| post["cid"] == cid }
-      end.compact
+      # Hydrate the newsworthy posts with the full post data based on "cids"
+      if newsworthy_posts.is_a?(Hash) && newsworthy_posts["cids"]
+        matched_posts = newsworthy_posts["cids"].map do |cid|
+          posts.find { |post| post["cid"] == cid }
+        end.compact
 
-      # Update the newsworthy_posts object to include the full posts
-      newsworthy_posts["posts"] = matched_posts
-      newsworthy_posts["breaking"] = matched_breaking_posts
+        # Update the newsworthy_posts object to include the full posts
+        newsworthy_posts["posts"] = matched_posts
 
-      # Remove the cids from the response
-      newsworthy_posts.delete("cids")
+        # Remove the "cids" key if it's no longer needed
+        newsworthy_posts.delete("cids")
+      end
 
-      # Send the newsworthy posts to the talkback URL
+      # If you still expect a "breaking" key, handle it similarly:
+      if newsworthy_posts.is_a?(Hash) && newsworthy_posts["breaking"]
+        matched_breaking_posts = newsworthy_posts["breaking"].map do |cid|
+          posts.find { |post| post["cid"] == cid }
+        end.compact
+        newsworthy_posts["breaking"] = matched_breaking_posts
+      end
+
       WIPHALA.talkback(talkback_url, payload["playlist"]["slug"], newsworthy_posts)
 
     rescue StandardError => e
