@@ -67,8 +67,8 @@ class GeminiClient
       - Important newsworthy keywords worth exploring.
 
       Instead of returning an array of objects, return a JSON object with two keys:
-        - "breaking": an array containing the cid values of all breaking news posts. MAX 50 items.
-        - "cids": an array containing the cid values of all non breaking news newsworthy posts (not in "breaking"). MAX 75 items.
+        - "breaking": an array containing the cid values of all breaking news posts. MAX 50 items, the most urgent first.
+        - "cids": an array containing the cid values of all non breaking news newsworthy posts (not in "breaking"). MAX 75 items, the most newsworthy ones first.
         - "keywords": an array containing the 15 most relevant categories and keywords (combined) across all posts, prioritized by urgency and newsworthiness.
 
       IMPORTANT: For the analysis, only consider the text portion of every post record, not embeds.
