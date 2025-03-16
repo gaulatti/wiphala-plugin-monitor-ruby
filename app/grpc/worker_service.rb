@@ -38,15 +38,27 @@ class WorkerServiceImpl < Worker::WorkerService::Service
 
   private
 
-  # Processes a task by searching for posts, filtering newsworthy posts, and sending them to a talkback URL.
+
+  # Processes a task by searching for posts based on provided keywords, filtering newsworthy posts,
+  # and sending the results to a specified talkback URL.
   #
-  # @param payload [Hash] the payload containing task details, including the search term and slug.
-  # @param talkback_url [String] the URL to send the filtered newsworthy posts to.
-  #
-  # @raise [StandardError] if any error occurs during the processing of the task.
+  # @param payload [Hash] The payload containing context and metadata information.
+  # @param talkback_url [String] The URL to send the newsworthy posts to.
+  # @return [Array] An empty array if no keywords are provided.
   #
   # @example
-  #   payload = { "search_term" => "example term", "slug" => "example-slug" }
+  #   payload = {
+  #     "context" => {
+  #       "metadata" => {
+  #         "keywords" => ["example"],
+  #         "keyword" => "example",
+  #         "since" => 3600
+  #       }
+  #     },
+  #     "playlist" => {
+  #       "slug" => "example_playlist"
+  #     }
+  #   }
   #   talkback_url = "http://example.com/talkback"
   #   process_task(payload, talkback_url)
   def process_task(payload, talkback_url)
@@ -66,6 +78,24 @@ class WorkerServiceImpl < Worker::WorkerService::Service
 
       posts = BLUESKY.search_multiple(keywords, seconds)
       newsworthy_posts = GEMINI.filter_newsworthy_posts(posts)
+
+      # Hydrate the newsworthy posts with the full post data
+      matched_posts = newsworthy_posts["cids"].map do |cid|
+        posts.find { |post| post["cid"] == cid }
+      end.compact
+
+      matched_breaking_posts = newsworthy_posts["breaking"].map do |cid|
+        posts.find { |post| post["cid"] == cid }
+      end.compact
+
+      # Update the newsworthy_posts object to include the full posts
+      newsworthy_posts["posts"] = matched_posts
+      newsworthy_posts["breaking"] = matched_breaking_posts
+
+      # Remove the cids from the response
+      newsworthy_posts.delete("cids")
+
+      # Send the newsworthy posts to the talkback URL
       WIPHALA.talkback(talkback_url, payload["playlist"]["slug"], newsworthy_posts)
 
     rescue StandardError => e
