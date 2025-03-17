@@ -40,28 +40,6 @@ class BlueskyClient
     end
   end
 
-  # Refreshes the session by making a POST request to the server's refreshSession endpoint.
-  # If the request is successful, updates the authentication and refresh tokens.
-  # If the request fails, sets the authentication token to nil.
-  #
-  # @return [void]
-  def refresh_session
-    return unless @refresh_token
-
-    uri = URI("#{BASE_URL}/xrpc/com.atproto.server.refreshSession")
-    response = Net::HTTP.post(uri, { refreshToken: @refresh_token }.to_json, { "Content-Type" => "application/json" })
-
-    if response.is_a?(Net::HTTPSuccess)
-      json = JSON.parse(response.body)
-      @auth_token = json["accessJwt"]
-      @refresh_token = json["refreshJwt"] if json["refreshJwt"]
-      puts "✅ Token refreshed successfully."
-    else
-      puts "❌ Token refresh failed: #{response.body}"
-      @auth_token = nil
-    end
-  end
-
   # Searches for posts containing the specified term.
   #
   # @param term [String] The search term to query for.
@@ -99,9 +77,9 @@ class BlueskyClient
       result = JSON.parse(response.body)
       result["posts"]
     elsif response.body.include?("ExpiredToken")
-      puts "⚠️ Token expired, refreshing..."
-      refresh_session
-      search(terms, seconds)
+      puts "⚠️ Token expired, re-logging in..."
+      @auth_token, @refresh_token = login
+      search(term, seconds)
     else
       puts "❌ Search failed: #{response.body}"
       nil
