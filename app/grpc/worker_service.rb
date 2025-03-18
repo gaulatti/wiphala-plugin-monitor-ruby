@@ -104,47 +104,45 @@ class WorkerServiceImpl < Worker::WorkerService::Service
     WIPHALA.talkback(talkback_url, payload["playlist"]["slug"], "MonitorGemini", newsworthy_posts)
   end
 
-  # Hydrates the provided payload by enriching the "MonitorGemini" sequence slot with full post data.
+  # Hydrates the payload by enriching the "MonitorGemini" and "MonitorBluesky" sequence slots
+  # with additional data and sends the updated output to a talkback URL.
   #
-  # @param payload [Hash] The payload containing context and sequence data.
-  #   - Expects a structure where `payload["context"]["sequence"]` is an array of slots.
-  #   - Each slot is a hash that may include a "name" key and other attributes.
-  # @param talkback_url [String] The URL to send the talkback response to.
-  #
-  # @return [void]
+  # @param payload [Hash] The input payload containing context and sequence data.
+  #   - Expects "context" key with a "sequence" array of slots.
+  #   - Each slot should have a "name" and an "output".
+  # @param talkback_url [String] The URL to send the hydrated data to.
   #
   # The method performs the following:
-  # - Finds the "MonitorGemini" slot in the sequence.
-  # - If the slot contains a "cids" key, it maps the "cids" to their corresponding full post data
-  #   and updates the slot with a "posts" key containing the enriched data.
-  # - Optionally removes the "cids" key if it's no longer needed.
-  # - If the slot contains a "breaking" key, it maps the "breaking" cids to their corresponding
-  #   full post data and updates the slot with enriched "breaking" data.
-  # - Sends the enriched data to the specified talkback URL using the WIPHALA.talkback method.
+  # - Finds the "MonitorGemini" slot in the sequence and extracts its "output".
+  # - Finds the "MonitorBluesky" slot in the sequence and extracts its "output" as posts.
+  # - Matches posts based on "cids" in the "MonitorGemini" output and enriches it with full post data.
+  # - Optionally processes a "breaking" key in the "MonitorGemini" output to match posts.
+  # - Sends the enriched output to the specified talkback URL using the WIPHALA.talkback method.
   def hydrate(payload, talkback_url)
-    newsworthy_posts = payload["context"]["sequence"].find { |slot|  slot["name"] == "MonitorGemini" }
-     # Hydrate the newsworthy posts with the full post data based on "cids"
-     if newsworthy_posts.is_a?(Hash) && newsworthy_posts["cids"]
-      matched_posts = newsworthy_posts["cids"].map do |cid|
+    # Inputs: From Bluesky and Gemini
+    output = payload["context"]["sequence"].find { |slot|  slot["name"] == "MonitorGemini" }["output"]
+    posts = payload["context"]["sequence"].find { |slot|  slot["name"] == "MonitorBluesky" }["output"]
+
+     # If there are flagged posts, hydrate them from the original source.
+     if output.is_a?(Hash) && output["cids"]
+      matched_posts = output["cids"].map do |cid|
         posts.find { |post| post["cid"] == cid }
       end.compact
 
-      # Update the newsworthy_posts object to include the full posts
-      newsworthy_posts["posts"] = matched_posts
-
-      # Remove the "cids" key if it's no longer needed
-      newsworthy_posts.delete("cids")
+      output["posts"] = matched_posts
+      output.delete("cids")
      end
 
-    # If you still expect a "breaking" key, handle it similarly:
-    if newsworthy_posts.is_a?(Hash) && newsworthy_posts["breaking"]
-      matched_breaking_posts = newsworthy_posts["breaking"].map do |cid|
+    # If there are breaking posts, hydrate them from the original source.
+    if output.is_a?(Hash) && output["breaking"]
+      matched_breaking_posts = output["breaking"].map do |cid|
         posts.find { |post| post["cid"] == cid }
       end.compact
-      newsworthy_posts["breaking"] = matched_breaking_posts
+      output["breaking"] = matched_breaking_posts
     end
 
-    WIPHALA.talkback(talkback_url, payload["playlist"]["slug"], "MonitorHydrate", newsworthy_posts)
+    # Return to sender.
+    WIPHALA.talkback(talkback_url, payload["playlist"]["slug"], "MonitorHydrate", output)
   end
 
   def slack(payload, talkback_url)
