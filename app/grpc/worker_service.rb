@@ -45,80 +45,19 @@ class WorkerServiceImpl < Worker::WorkerService::Service
   private
 
 
-  # Processes a task by searching for posts based on provided keywords, filtering newsworthy posts,
-  # and sending the results to a specified talkback URL.
+  # The `bluesky` method interacts with the BLUESKY service to search for posts
+  # based on provided keywords and a time constraint, and then sends the results
+  # to a specified talkback URL.
   #
-  # @param payload [Hash] The payload containing context and metadata information.
-  # @param talkback_url [String] The URL to send the newsworthy posts to.
-  # @return [Array] An empty array if no keywords are provided.
+  # @param payload [Hash] A hash containing the context and metadata for the search.
+  #   - `payload["context"]["metadata"]["keywords"]` [Array<String>] (optional) A list of keywords to search for.
+  #   - `payload["context"]["metadata"]["keyword"]` [String] (optional) A single keyword for backwards compatibility.
+  #   - `payload["context"]["metadata"]["since"]` [Integer] (optional) A timestamp indicating the earliest time for the search.
+  #   - `payload["playlist"]["slug"]` [String] The slug identifier for the playlist.
+  # @param talkback_url [String] The URL to send the search results to.
   #
-  # @example
-  #   payload = {
-  #     "context" => {
-  #       "metadata" => {
-  #         "keywords" => ["example"],
-  #         "keyword" => "example",
-  #         "since" => 3600
-  #       }
-  #     },
-  #     "playlist" => {
-  #       "slug" => "example_playlist"
-  #     }
-  #   }
-  #   talkback_url = "http://example.com/talkback"
-  #   process_task(payload, talkback_url)
-  def tutti(payload, talkback_url)
-    begin
-      keywords = payload["context"]["metadata"]["keywords"] || []
-
-      # Keeping keyword for backwards compatibility
-      keyword = payload["context"]["metadata"]["keyword"]
-      seconds = payload["context"]["metadata"]["since"]
-
-      unless keyword.nil?
-        keywords.push(keyword)
-      end
-
-      # If there's no keyword provided, don't do anything.
-      return [] if keywords.empty?
-
-      posts = BLUESKY.search_multiple(keywords, seconds)
-      newsworthy_posts = GEMINI.filter_newsworthy_posts(posts)
-
-      # If the response is an array instead of the expected hash, take the first element
-      if newsworthy_posts.is_a?(Array)
-        newsworthy_posts = newsworthy_posts.first || {}
-      end
-
-      # Hydrate the newsworthy posts with the full post data based on "cids"
-      if newsworthy_posts.is_a?(Hash) && newsworthy_posts["cids"]
-        matched_posts = newsworthy_posts["cids"].map do |cid|
-          posts.find { |post| post["cid"] == cid }
-        end.compact
-
-        # Update the newsworthy_posts object to include the full posts
-        newsworthy_posts["posts"] = matched_posts
-
-        # Remove the "cids" key if it's no longer needed
-        newsworthy_posts.delete("cids")
-      end
-
-      # If you still expect a "breaking" key, handle it similarly:
-      if newsworthy_posts.is_a?(Hash) && newsworthy_posts["breaking"]
-        matched_breaking_posts = newsworthy_posts["breaking"].map do |cid|
-          posts.find { |post| post["cid"] == cid }
-        end.compact
-        newsworthy_posts["breaking"] = matched_breaking_posts
-      end
-
-      WIPHALA.talkback(talkback_url, payload["playlist"]["slug"], "TuttiMonitor", newsworthy_posts)
-
-    rescue StandardError => e
-      puts "❌ Error in process_task: #{e.message}"
-      puts e.backtrace.join("\n")
-    end
-  end
-
+  # @return [Array] Returns an empty array if no keywords are provided, otherwise
+  #   the method sends the search results to the talkback URL and does not return anything meaningful.
   def bluesky(payload, talkback_url)
     keywords = payload["context"]["metadata"]["keywords"] || []
 
@@ -137,52 +76,100 @@ class WorkerServiceImpl < Worker::WorkerService::Service
     WIPHALA.talkback(talkback_url, payload["playlist"]["slug"], "MonitorBluesky", posts)
   end
 
+  # Processes the given payload to filter and handle newsworthy posts, and sends a talkback
+  # to the specified URL.
+  #
+  # @param payload [Hash] The input data containing context and playlist information.
+  #   - context [Hash]: Includes a "sequence" array where each slot represents a specific
+  #     context. The method looks for a slot with the name "MonitorBluesky".
+  #   - playlist [Hash]: Contains a "slug" key used for the talkback.
+  # @param talkback_url [String] The URL to send the talkback to.
+  #
+  # @return [void]
+  #
+  # The method performs the following steps:
+  # 1. Extracts the "MonitorBluesky" slot from the payload's context sequence.
+  # 2. Filters the extracted slot for newsworthy posts using the GEMINI module.
+  # 3. Ensures the result is a hash by taking the first element if the response is an array.
+  # 4. Sends the filtered data to the specified talkback URL using the WIPHALA module.
   def gemini(payload, talkback_url)
-    # newsworthy_posts = GEMINI.filter_newsworthy_posts(posts)
+    posts = payload["context"]["sequence"].find { |slot|  slot["name"] == "MonitorBluesky" }
+    newsworthy_posts = GEMINI.filter_newsworthy_posts(posts)
 
-    #   # If the response is an array instead of the expected hash, take the first element
-    #   if newsworthy_posts.is_a?(Array)
-    #     newsworthy_posts = newsworthy_posts.first || {}
-    #   end
+    # If the response is an array instead of the expected hash, take the first element
+    if newsworthy_posts.is_a?(Array)
+      newsworthy_posts = newsworthy_posts.first || {}
+    end
 
-    WIPHALA.talkback(talkback_url, payload["playlist"]["slug"], "MonitorGemini", [])
+    WIPHALA.talkback(talkback_url, payload["playlist"]["slug"], "MonitorGemini", newsworthy_posts)
   end
 
+  # Hydrates the provided payload by enriching the "MonitorGemini" sequence slot with full post data.
+  #
+  # @param payload [Hash] The payload containing context and sequence data.
+  #   - Expects a structure where `payload["context"]["sequence"]` is an array of slots.
+  #   - Each slot is a hash that may include a "name" key and other attributes.
+  # @param talkback_url [String] The URL to send the talkback response to.
+  #
+  # @return [void]
+  #
+  # The method performs the following:
+  # - Finds the "MonitorGemini" slot in the sequence.
+  # - If the slot contains a "cids" key, it maps the "cids" to their corresponding full post data
+  #   and updates the slot with a "posts" key containing the enriched data.
+  # - Optionally removes the "cids" key if it's no longer needed.
+  # - If the slot contains a "breaking" key, it maps the "breaking" cids to their corresponding
+  #   full post data and updates the slot with enriched "breaking" data.
+  # - Sends the enriched data to the specified talkback URL using the WIPHALA.talkback method.
   def hydrate(payload, talkback_url)
-    #  # Hydrate the newsworthy posts with the full post data based on "cids"
-    #  if newsworthy_posts.is_a?(Hash) && newsworthy_posts["cids"]
-    #   matched_posts = newsworthy_posts["cids"].map do |cid|
-    #     posts.find { |post| post["cid"] == cid }
-    #   end.compact
+    newsworthy_posts = payload["context"]["sequence"].find { |slot|  slot["name"] == "MonitorGemini" }
+     # Hydrate the newsworthy posts with the full post data based on "cids"
+     if newsworthy_posts.is_a?(Hash) && newsworthy_posts["cids"]
+      matched_posts = newsworthy_posts["cids"].map do |cid|
+        posts.find { |post| post["cid"] == cid }
+      end.compact
 
-    #   # Update the newsworthy_posts object to include the full posts
-    #   newsworthy_posts["posts"] = matched_posts
+      # Update the newsworthy_posts object to include the full posts
+      newsworthy_posts["posts"] = matched_posts
 
-    #   # Remove the "cids" key if it's no longer needed
-    #   newsworthy_posts.delete("cids")
-    #  end
+      # Remove the "cids" key if it's no longer needed
+      newsworthy_posts.delete("cids")
+     end
 
-    # # If you still expect a "breaking" key, handle it similarly:
-    # if newsworthy_posts.is_a?(Hash) && newsworthy_posts["breaking"]
-    #   matched_breaking_posts = newsworthy_posts["breaking"].map do |cid|
-    #     posts.find { |post| post["cid"] == cid }
-    #   end.compact
-    #   newsworthy_posts["breaking"] = matched_breaking_posts
-    # end
+    # If you still expect a "breaking" key, handle it similarly:
+    if newsworthy_posts.is_a?(Hash) && newsworthy_posts["breaking"]
+      matched_breaking_posts = newsworthy_posts["breaking"].map do |cid|
+        posts.find { |post| post["cid"] == cid }
+      end.compact
+      newsworthy_posts["breaking"] = matched_breaking_posts
+    end
 
-    WIPHALA.talkback(talkback_url, payload["playlist"]["slug"], "MonitorHydrate", [])
+    WIPHALA.talkback(talkback_url, payload["playlist"]["slug"], "MonitorHydrate", newsworthy_posts)
   end
 
   def slack(payload, talkback_url)
+    newsworthy_posts = payload["context"]["sequence"].find { |slot|  slot["name"] == "MonitorHydrate" }
+    # post to slack
     WIPHALA.talkback(talkback_url, payload["playlist"]["slug"], "MonitorSlack", [])
   end
 
+  # Processes a task based on the provided payload and talkback URL.
+  #
+  # @param payload [Hash] A hash containing task details, including the "name" key
+  #   which determines the type of operation to perform.
+  # @param talkback_url [String] A URL used for sending responses or updates related
+  #   to the task.
+  #
+  # @note Supported operations are:
+  #   - "MonitorBluesky": Calls the `bluesky` method.
+  #   - "MonitorGemini": Calls the `gemini` method.
+  #   - "MonitorHydrate": Calls the `hydrate` method.
+  #   - "MonitorSlack": Calls the `slack` method.
+  #   If the "name" key does not match any of these operations, an "Unknown operation"
+  #   message is logged.
   def process_task(payload, talkback_url)
     name = payload["name"]
       case name
-      when "TuttiMonitor"
-        # Perform operation 1
-        tutti(payload, talkback_url)
       when "MonitorBluesky"
         bluesky(payload, talkback_url)
       when "MonitorGemini"
