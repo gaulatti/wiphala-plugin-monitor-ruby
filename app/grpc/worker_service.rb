@@ -146,8 +146,81 @@ class WorkerServiceImpl < Worker::WorkerService::Service
   end
 
   def slack(payload, talkback_url)
-    newsworthy_posts = payload["context"]["sequence"].find { |slot|  slot["name"] == "MonitorHydrate" }
-    # post to slack
+    # Find the hydrated MonitorHydrate slot
+    hydrated_slot = payload["context"]["sequence"].find { |slot| slot["name"] == "MonitorHydrate" }
+    unless hydrated_slot
+      puts "No MonitorHydrate slot found in sequence"
+      return
+    end
+
+    hydrated = hydrated_slot["output"]
+    breaking_posts = hydrated["breaking"] || []  # an array of posts
+
+    slack_url = ENV["SLACK_URL"]
+    unless slack_url
+      puts "SLACK_URL environment variable not set"
+      return
+    end
+
+    breaking_posts.each do |post|
+      text = post.dig("record", "text") || ""
+      created_at = post.dig("record", "createdAt") || ""
+      cid = post["cid"]
+
+      # Convert the internal Bluesky URI to a clickable web URL.
+      raw_uri = post["uri"]
+      post_url = raw_uri
+
+      if raw_uri.start_with?("at://")
+        # Extract the post ID (the part after the last slash)
+        post_id = raw_uri.split("/").last
+        # Extract the author handle from the post object
+        author_handle = post.dig("author", "handle")
+        if author_handle
+          post_url = "https://bsky.app/profile/#{author_handle}/post/#{post_id}"
+        else
+          post_url = "https://bsky.app/posts/#{post_id}"  # fallback
+        end
+      end
+
+      message = {
+        text: text,
+        blocks: [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: "> " + text + "\n\n" + "<#{post_url}|*View the original post* on Bluesky>"
+            }
+          },
+          {
+            type: "context",
+            elements: [
+              {
+                type: "mrkdwn",
+                text: "_Posted on: #{created_at} — ID: #{cid}_"
+              }
+            ]
+          }
+        ]
+      }
+
+      uri = URI(slack_url)
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true if uri.scheme == "https"
+      request = Net::HTTP::Post.new(uri, { "Content-Type" => "application/json" })
+      request.body = message.to_json
+
+      response = http.request(request)
+      if response.is_a?(Net::HTTPSuccess)
+        # TODO: Remove this log once it's stable enough.
+        puts "✅ Slack message sent for post CID #{cid}, #{post_url}"
+      else
+        puts "❌ Error sending Slack message for post CID #{cid}: #{response.body}"
+      end
+    end
+
+    # Move on
     WIPHALA.talkback(talkback_url, payload["playlist"]["slug"], "MonitorSlack", [])
   end
 
