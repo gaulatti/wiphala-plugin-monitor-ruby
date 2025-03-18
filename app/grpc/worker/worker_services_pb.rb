@@ -2,7 +2,7 @@
 # Source: worker.proto for package 'worker'
 
 require "grpc"
-require_relative "./worker_pb"
+require_relative "worker_pb"
 
 module Worker
   module WorkerService

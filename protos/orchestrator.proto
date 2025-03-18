@@ -10,6 +10,7 @@ service OrchestratorService {
 message PlaylistRequest {
   string slug = 1;
   string context = 2;
+  string origin = 3;
 }
 
 message PlaylistResponse {
@@ -20,6 +21,7 @@ message PlaylistResponse {
 message PlaylistSegue {
   string slug = 1;
   string output = 2;
+  string operation = 3;
 }
 
 message PlaylistSegueResponse {

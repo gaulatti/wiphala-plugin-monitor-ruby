@@ -2,7 +2,7 @@
 # Source: orchestrator.proto for package 'orchestrator'
 
 require "grpc"
-require_relative "./orchestrator_pb"
+require_relative "orchestrator_pb"
 
 module Orchestrator
   module OrchestratorService

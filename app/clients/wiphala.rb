@@ -19,7 +19,7 @@ class WiphalaClient
   #
   # @return [void]
   # @raise [StandardError] If the gRPC call fails, an error message and backtrace are printed to the console.
-  def talkback(talkback_url, slug, newsworthy_posts)
+  def talkback(talkback_url, slug, operation, output)
     begin
       uri = URI.parse(talkback_url)
       host = uri.host
@@ -31,7 +31,8 @@ class WiphalaClient
       # Prepare the gRPC request
       request = Orchestrator::PlaylistSegue.new(
         slug: slug,
-        output: newsworthy_posts.to_json
+        operation: operation,
+        output: output.to_json,
       )
 
       # Send the request
