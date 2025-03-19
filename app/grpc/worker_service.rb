@@ -156,15 +156,7 @@ class WorkerServiceImpl < Worker::WorkerService::Service
     hydrated = hydrated_slot["output"]
     breaking_posts = hydrated["breaking"] || []  # an array of posts
 
-    slack_url = ENV["SLACK_URL"]
-    unless slack_url
-      puts "SLACK_URL environment variable not set"
-      return
-    end
-
     breaking_posts.each do |post|
-      text = post.dig("record", "text") || ""
-      created_at = post.dig("record", "createdAt") || ""
       cid = post["cid"]
 
       # Convert the internal Bluesky URI to a clickable web URL.
@@ -172,43 +164,30 @@ class WorkerServiceImpl < Worker::WorkerService::Service
       post_url = raw_uri
 
       if raw_uri.start_with?("at://")
-        # Extract the post ID (the part after the last slash)
         post_id = raw_uri.split("/").last
-        # Extract the author handle from the post object
         author_handle = post.dig("author", "handle")
         if author_handle
           post_url = "https://bsky.app/profile/#{author_handle}/post/#{post_id}"
         else
-          post_url = "https://bsky.app/posts/#{post_id}"  # fallback
+          post_url = "https://bsky.app/posts/#{post_id}"
         end
       end
 
       message = {
-        text: text,
-        blocks: [
-          {
-            type: "section",
-            text: {
-              type: "mrkdwn",
-              text: "> " + text + "\n\n" + "<#{post_url}|*View the original post* on Bluesky>"
-            }
-          },
-          {
-            type: "context",
-            elements: [
-              {
-                type: "mrkdwn",
-                text: "_Posted on: #{created_at} — ID: #{cid}_"
-              }
-            ]
-          }
-        ]
+        channel: ENV["SLACK_CHANNEL"],
+        text: post_url,
+        unfurl_links: true,
+        unfurl_media: true
       }
 
-      uri = URI(slack_url)
+      uri = URI("https://slack.com/api/chat.postMessage")
+      headers = {
+        "Content-Type" => "application/json; charset=utf-8",
+        "Authorization" => "Bearer #{ENV["SLACK_API_KEY"]}"
+      }
       http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true if uri.scheme == "https"
-      request = Net::HTTP::Post.new(uri, { "Content-Type" => "application/json" })
+      http.use_ssl = true
+      request = Net::HTTP::Post.new(uri, headers)
       request.body = message.to_json
 
       response = http.request(request)

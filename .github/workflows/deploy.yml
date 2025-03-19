@@ -70,7 +70,8 @@ jobs:
             -e BLUESKY_USERNAME=${{ secrets.BLUESKY_USERNAME }} \
             -e BLUESKY_PASSWORD=${{ secrets.BLUESKY_PASSWORD }} \
             -e GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }} \
-            -e SLACK_URL=${{ secrets.SLACK_URL }} \
+            -e SLACK_API_KEY=${{ secrets.SLACK_API_KEY }} \
+            -e SLACK_CHANNEL=${{ secrets.SLACK_CHANNEL }} \
             --restart=always \
             --log-driver=awslogs \
             --log-opt awslogs-region=${{ vars.AWS_REGION }} \
