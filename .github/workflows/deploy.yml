@@ -45,7 +45,7 @@ jobs:
 
       # Step 7: Deploy to on-premises server
       - name: Deploy to on-premises host
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
