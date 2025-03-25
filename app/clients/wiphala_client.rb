@@ -36,7 +36,7 @@ class WiphalaClient
       )
 
       # Send the request
-      stub.segue_playlist(request)
+      stub.segue(request)
     rescue StandardError => e
       puts "❌ gRPC call failed: #{e.message}"
       puts e.backtrace.join("\n")
