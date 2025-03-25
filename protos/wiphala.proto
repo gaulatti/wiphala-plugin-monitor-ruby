@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package wiphala;
+
+service WiphalaService {
+  rpc Trigger (TriggerRequest) returns (TriggerResponse);
+  rpc Segue (SegueRequest) returns (SegueResponse);
+}
+
+message TriggerRequest {
+  string slug = 1;
+  string context = 2;
+  string origin = 3;
+}
+
+message TriggerResponse {
+  string slug = 1;
+  string status = 2;
+}
+
+message SegueRequest {
+  string slug = 1;
+  string output = 2;
+  string operation = 3;
+}
+
+message SegueResponse {
+  bool success = 1;
+}

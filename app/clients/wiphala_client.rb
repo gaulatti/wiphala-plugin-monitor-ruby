@@ -1,5 +1,5 @@
 
-# WiphalaClient is responsible for sending gRPC requests to the Orchestrator service.
+# WiphalaClient is responsible for sending gRPC requests to the Wiphala service.
 #
 # Methods:
 # - talkback(talkback_url, slug, newsworthy_posts): Sends a gRPC request to update the playlist segue.
@@ -10,9 +10,9 @@
 #
 # Dependencies:
 # - Requires the 'grpc' gem.
-# - Requires the 'orchestrator_services_pb' file which defines the Orchestrator gRPC service and messages.
+# - Requires the 'wiphala_services_pb' file which defines the Wiphala gRPC service and messages.
 class WiphalaClient
-  # Sends a gRPC request to the Orchestrator service to update the playlist segue.
+  # Sends a gRPC request to the Wiphala service to update the playlist segue.
   # @param talkback_url [String] The URL of the gRPC service.
   # @param slug [String] The slug identifier for the playlist.
   # @param newsworthy_posts [Array<Hash>] The list of newsworthy posts to be included in the playlist.
@@ -26,10 +26,10 @@ class WiphalaClient
       port = uri.port || 50051
 
       # Create a gRPC channel and client
-      stub = Orchestrator::OrchestratorService::Stub.new("#{host}:#{port}", :this_channel_is_insecure)
+      stub = Wiphala::WiphalaService::Stub.new("#{host}:#{port}", :this_channel_is_insecure)
 
       # Prepare the gRPC request
-      request = Orchestrator::PlaylistSegue.new(
+      request = Wiphala::SegueRequest.new(
         slug: slug,
         operation: operation,
         output: output.to_json,

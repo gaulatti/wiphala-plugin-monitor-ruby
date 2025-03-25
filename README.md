@@ -26,6 +26,6 @@ Things you may want to cover:
 To re-generate the protos:
 
 ```
-grpc_tools_ruby_protoc -I ./protos --ruby_out=./app/grpc/orchestrator --grpc_out=./app/grpc/orchestrator protos/orchestrator.proto;
+grpc_tools_ruby_protoc -I ./protos --ruby_out=./app/grpc/wiphala --grpc_out=./app/grpc/wiphala protos/wiphala.proto;
 grpc_tools_ruby_protoc -I ./protos --ruby_out=./app/grpc/worker --grpc_out=./app/grpc/worker protos/worker.proto
 ```

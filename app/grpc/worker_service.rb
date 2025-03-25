@@ -1,14 +1,14 @@
 require "json"
 require "net/http"
 require_relative "./worker/worker_services_pb"
-require_relative "./orchestrator/orchestrator_services_pb"
+require_relative "./wiphala/wiphala_services_pb"
 require_relative "../clients/bluesky"
 require_relative "../clients/gemini"
-require_relative "../clients/wiphala"
+require_relative "../clients/wiphala_client"
 
 # To re-generate the pb services:
-# grpc_tools_ruby_protoc -I ./protos --ruby_out=./app/grpc/orchestrator
-# --grpc_out=./app/grpc/orchestrator protos/orchestrator.proto;
+# grpc_tools_ruby_protoc -I ./protos --ruby_out=./app/grpc/wiphala
+# --grpc_out=./app/grpc/wiphala protos/wiphala.proto;
 # grpc_tools_ruby_protoc -I ./protos --ruby_out=./app/grpc/worker
 # --grpc_out=./app/grpc/worker protos/worker.proto
 
